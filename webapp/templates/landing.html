@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Brooder · Incubator climate simulation</title>
+  <script>
+    const savedTheme = localStorage.getItem('brooder-theme');
+    document.documentElement.dataset.theme = savedTheme === 'light' || savedTheme === 'dark'
+      ? savedTheme
+      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='talking-guide.css') }}">
+  <style>
+    :root{font:16px/1.5 system-ui,sans-serif;color-scheme:light;--page:#f5f8fc;--surface:#fff;--ink:#142338;--muted:#607086;--border:#e0e7f0;--accent:#1f6feb;--accent-shadow:#1f6feb33;--soft:#f5f8fc;--icon-bg:#eaf2ff;--eyebrow:#2163bd;--badge-bg:#e8f7ef;--badge-ink:#168151;--preview-shadow:0 22px 65px #203d6518;background:var(--page)}
+    :root[data-theme="dark"]{color-scheme:dark;--page:#101722;--surface:#1a2533;--ink:#edf3fb;--muted:#acb9ca;--border:#344356;--accent:#1f6feb;--accent-shadow:#1f6feb55;--soft:#253244;--icon-bg:#263c59;--eyebrow:#8bb5ff;--badge-bg:#17382d;--badge-ink:#91dcb0;--preview-shadow:0 22px 65px #0008}
+    :root[data-theme="light"]{color-scheme:light}
+    *{box-sizing:border-box}
+    body{margin:0;color:var(--ink);background:var(--page);transition:background-color .18s,color .18s}
+    a{color:inherit;text-decoration:none}
+    .wrap{width:min(1120px,calc(100% - 40px));margin:auto}
+    header{height:76px;display:flex;align-items:center;justify-content:space-between;color:var(--ink)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:750;font-size:18px}
+    .brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--accent);color:#fff}
+    nav{display:flex;align-items:center;gap:12px}
+    .button{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border:0;border-radius:9px;font:inherit;font-weight:650;cursor:pointer;transition:background-color .18s,color .18s,border-color .18s,filter .18s}
+    .button:focus-visible{outline:3px solid var(--eyebrow);outline-offset:3px}
+    .primary{color:#fff;background:var(--accent);box-shadow:0 6px 16px var(--accent-shadow)}
+    .primary:hover{filter:brightness(1.06)}
+    .secondary{border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+    .secondary:hover{background:var(--soft)}
+    .theme-icon{display:none}
+    .hero{display:grid;grid-template-columns:0.92fr 1.08fr;align-items:center;gap:52px;padding:58px 0 70px}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--eyebrow);font-size:12px;font-weight:750;letter-spacing:.11em}
+    .dot{width:8px;height:8px;border-radius:50%;background:#34ad78}
+    h1{max-width:520px;margin:17px 0 16px;font-size:clamp(38px,5vw,58px);line-height:1.04;letter-spacing:-.045em}
+    .intro{max-width:475px;color:var(--muted);font-size:18px}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:27px}
+    .note{margin-top:16px;color:var(--muted);font-size:13px}
+    .preview{position:relative;padding:16px;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:var(--preview-shadow)}
+    .preview-head{display:flex;justify-content:space-between;align-items:center;padding:2px 3px 14px}
+    .preview-title{font-weight:700}
+    .badge{padding:5px 9px;border-radius:20px;background:var(--badge-bg);color:var(--badge-ink);font-size:11px;font-weight:750}
+    .scene-figure{margin:0}
+    .scene{display:block;width:100%;height:clamp(190px,42vw,300px);object-fit:cover;object-position:center 52%;border-radius:12px;background:#dcecff}
+    .scene-credit{margin:4px 3px 0;color:var(--muted);font-size:10px;text-align:right}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+    .stat{padding:10px;border-radius:10px;background:var(--soft)}
+    .stat small{display:block;color:var(--muted);font-size:11px}
+    .stat strong{font-size:15px}
+    .below{padding:30px 0 64px;border-top:1px solid var(--border)}
+    .below h2{margin:0 0 8px;font-size:25px;letter-spacing:-.02em}
+    .below>p{margin:0;color:var(--muted)}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
+    .feature{padding:19px;border:1px solid var(--border);border-radius:13px;background:var(--surface)}
+    .icon{display:grid;place-items:center;width:36px;height:36px;margin-bottom:12px;border-radius:10px;background:var(--icon-bg);color:var(--accent);font-size:18px;font-weight:750}
+    .feature h3{margin:0 0 6px;font-size:16px}
+    .feature p{margin:0;color:var(--muted);font-size:14px}
+    footer{padding:18px 0;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+    @media(max-width:850px){.hero{grid-template-columns:1fr;gap:34px;padding-top:38px}.intro{max-width:650px}}
+    @media(max-width:560px){.wrap{width:min(100% - 28px,1120px)}header{height:66px}.brand{gap:7px;font-size:15px}.brand-mark{width:34px;height:34px}nav{gap:5px}.button{padding:7px 8px;font-size:12px}.theme-toggle{width:34px;height:34px;padding:0}.theme-toggle .theme-icon{display:inline;font-size:17px}.theme-toggle .theme-label{display:none}.hero{padding:28px 0 42px}.stats{gap:5px}.stat{padding:8px}.stat strong{font-size:13px}.features{grid-template-columns:1fr}.below{padding-bottom:40px}}
+    @media(max-width:380px){.brand-name{display:none}}
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <a class="brand" href="{{ url_for('landing') }}" aria-label="Smart Brooder home">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <span class="brand-name">Smart Brooder</span>
+    </a>
+    <nav aria-label="Account">
+      <button class="button secondary theme-toggle" type="button" id="themeToggle" aria-label="Switch to dark mode">
+        <span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dark mode</span>
+      </button>
+      {% if logged_in %}
+        <a class="button primary" href="{{ url_for('index') }}">Open dashboard</a>
+      {% else %}
+        <a class="button secondary" href="{{ url_for('login') }}">Sign in</a>
+        <a class="button primary" href="{{ url_for('signup') }}">Create account</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> POULTRY CLIMATE SIMULATION</div>
+        <h1>See how every degree affects your brooder.</h1>
+        <p class="intro">Explore temperature control, changing weather, heater limits, and chick comfort in a clear interactive simulation.</p>
+        <div class="actions">
+          {% if logged_in %}
+            <a class="button primary" href="{{ url_for('index') }}">Open the simulator</a>
+          {% else %}
+            <a class="button primary" href="{{ url_for('signup') }}">Get started</a>
+            <a class="button secondary" href="{{ url_for('login') }}">I already have an account</a>
+          {% endif %}
+        </div>
+        <p class="note">Preview the experience here. Create an account to run simulations and save your results.</p>
+      </div>
+
+      <div class="preview">
+        <div class="preview-head">
+          <span class="preview-title">Brooder preview</span>
+          <span class="badge">SAMPLE PREVIEW</span>
+        </div>
+        <figure class="scene-figure">
+          <img class="scene" src="{{ url_for('static', filename='chicks-in-brooder.jpg') }}"
+               alt="Fluffy yellow chicks standing together inside a brooder"
+               width="1280" height="1280">
+          <figcaption class="scene-credit">Photo by <a href="https://commons.wikimedia.org/wiki/File:Fuzzy_yellow_chicks_in_a_brooder.jpg" target="_blank" rel="noopener noreferrer">ELTORO.VET</a> · CC0</figcaption>
+        </figure>
+        <div class="stats">
+          <div class="stat"><small>TEMPERATURE</small><strong>35.0 °C</strong></div>
+          <div class="stat"><small>COMFORT BAND</small><strong>33–37 °C</strong></div>
+          <div class="stat"><small>OUTDOOR</small><strong>12 °C</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="below">
+      <h2>Understand the system before you tune it</h2>
+      <p>Try realistic scenarios and see how the controller responds over time.</p>
+      <div class="features">
+        <article class="feature"><span class="icon" aria-hidden="true">↗</span><h3>Explore weather changes</h3><p>Simulate cold nights, rain, and dawn temperature shifts.</p></article>
+        <article class="feature"><span class="icon" aria-hidden="true">°</span><h3>Compare controller settings</h3><p>Adjust PI/PID gains, heater power, and insulation.</p></article>
+        <article class="feature"><span class="icon" aria-hidden="true">▥</span><h3>Review your results</h3><p>Watch temperature and heater power, then keep your runs in a private history.</p></article>
+      </div>
+    </section>
+  </main>
+  <footer><div class="wrap">A learning simulation for brooder temperature control.</div></footer>
+  <script>
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = themeToggle.querySelector('.theme-icon');
+    const themeLabel = themeToggle.querySelector('.theme-label');
+
+    function updateThemeButton() {
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      themeLabel.textContent = isDark ? 'Light mode' : 'Dark mode';
+      themeIcon.textContent = isDark ? '☀' : '☾';
+      themeToggle.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} mode`);
+    }
+
+    updateThemeButton();
+    themeToggle.addEventListener('click', () => {
+      const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = nextTheme;
+      localStorage.setItem('brooder-theme', nextTheme);
+      updateThemeButton();
+    });
+  </script>
+  {% set guide_key = "landing" %}
+  {% include "_talking_guide.html" %}
+</body>
+</html>

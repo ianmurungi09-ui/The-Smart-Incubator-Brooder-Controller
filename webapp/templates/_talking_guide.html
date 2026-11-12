@@ -1,0 +1,42 @@
+<aside class="talking-guide" id="talkingGuide" data-guide="{{ guide_key }}">
+  <button class="guide-launch" id="guideLaunch" type="button" aria-expanded="false" aria-controls="guidePanel">
+    <svg class="guide-avatar-small" viewBox="0 0 96 96" aria-hidden="true">
+      <ellipse cx="46" cy="58" rx="33" ry="25" fill="#f3c84b" stroke="#b87724" stroke-width="3"/>
+      <circle cx="61" cy="34" r="20" fill="#f8d96b" stroke="#b87724" stroke-width="3"/>
+      <path d="M75 35l15 5-15 7z" fill="#d96c29"/>
+      <circle cx="67" cy="30" r="3" fill="#382b20"/>
+      <path d="M28 52q17 8 25 0-5 19-23 13" fill="#e7ae38"/>
+      <path d="M29 81l-3 7m21-6 2 7" stroke="#bd7130" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+    <span>Meet Pip</span><span class="guide-launch-help">Help</span>
+  </button>
+  <section class="guide-panel" id="guidePanel" aria-label="Pip the brooder guide" hidden>
+    <div class="guide-head">
+      <svg class="guide-avatar" viewBox="0 0 96 96" aria-hidden="true">
+        <ellipse cx="46" cy="58" rx="33" ry="25" fill="#f3c84b" stroke="#b87724" stroke-width="3"/>
+        <circle cx="61" cy="34" r="20" fill="#f8d96b" stroke="#b87724" stroke-width="3"/>
+        <path class="guide-beak" d="M75 35l16 5-16 7z" fill="#d96c29"/>
+        <circle cx="67" cy="30" r="3" fill="#382b20"/>
+        <path d="M28 52q17 8 25 0-5 19-23 13" fill="#e7ae38"/>
+        <path d="M29 81l-3 7m21-6 2 7" stroke="#bd7130" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div><strong>Pip the chick</strong><small>Your talking brooder guide</small></div>
+      <button class="guide-close" id="guideClose" type="button" aria-label="Close guide">×</button>
+    </div>
+    <div class="guide-progress">
+      <span id="guideCount"></span>
+      <div class="guide-progress-track"><span id="guideProgress"></span></div>
+    </div>
+    <h2 id="guideTitle"></h2>
+    <p class="guide-text" id="guideText"></p>
+    <div class="guide-voice-row">
+      <button class="guide-speak" id="guideSpeak" type="button">Read aloud</button>
+      <span id="guideStatus" role="status" aria-live="polite"></span>
+    </div>
+    <div class="guide-nav">
+      <button class="guide-back" id="guidePrev" type="button">Back</button>
+      <button class="guide-next" id="guideNext" type="button">Next</button>
+    </div>
+  </section>
+</aside>
+<script src="{{ url_for('static', filename='talking-guide.js') }}"></script>

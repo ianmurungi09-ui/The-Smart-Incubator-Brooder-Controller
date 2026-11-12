@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Brooder Web App",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "webapp.app",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "serverReadyAction": {
+                "pattern": "Running on (http://127\\.0\\.0\\.1:5000)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        }
+    ]
+}

@@ -1,0 +1,6 @@
+pygame>=2.5
+numpy>=1.24
+matplotlib>=3.7
+flask>=3.0
+python-docx>=1.1
+python-pptx>=1.0

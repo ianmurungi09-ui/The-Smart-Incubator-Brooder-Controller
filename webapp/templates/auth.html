@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ "Create account" if mode == "signup" else "Sign in" }} · Smart Brooder</title>
+  <script>
+    const savedTheme=localStorage.getItem('brooder-theme');
+    document.documentElement.dataset.theme=savedTheme==='light'||savedTheme==='dark'?savedTheme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='talking-guide.css') }}">
+  <style>
+    :root{font:16px/1.5 system-ui,sans-serif;color-scheme:light;--page:#fff8ee;--card:#fffdf9;--ink:#34291f;--muted:#776657;--border:#ecdcc8;--field:#fff;--accent:#a8461d;--glow:#ffe7c0}
+    :root[data-theme="dark"]{color-scheme:dark;--page:#171914;--card:#22251d;--ink:#f8eddc;--muted:#c2b49c;--border:#414238;--field:#2c2d23;--accent:#ffb258;--glow:#3b2b1d}
+    :root[data-theme="light"]{color-scheme:light}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;color:var(--ink);background:radial-gradient(ellipse at 82% 0,var(--glow),transparent 38%),var(--page)}
+    .auth-shell{width:min(1080px,100%);min-height:650px;display:grid;grid-template-columns:1.04fr .96fr;overflow:hidden;border:1px solid var(--border);border-radius:28px;background:var(--card);box-shadow:0 24px 80px #49351e1c}
+    .auth-story{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:26px;overflow:hidden;padding:38px 42px;color:#fff;background:linear-gradient(145deg,#173b2c,#315a3b)}
+    .auth-story:before,.auth-story:after{position:absolute;content:"";border-radius:50%;pointer-events:none}
+    .auth-story:before{width:360px;height:360px;right:-150px;top:-150px;background:radial-gradient(circle,#f5ab4d38,transparent 70%)}
+    .auth-story:after{width:300px;height:300px;left:-180px;bottom:-170px;background:radial-gradient(circle,#e9a23d2b,transparent 70%)}
+    .story-brand,.story-copy,.story-foot{position:relative;z-index:1}
+    .story-brand{display:inline-flex;align-items:center;gap:11px;width:max-content;color:#fff;text-decoration:none;font-weight:750}
+    .brand-mark{display:grid;place-items:center;width:40px;height:40px;border-radius:13px;background:linear-gradient(145deg,#c76422,#a84120);color:#fff;font-size:19px}
+    .story-brand small{display:block;color:#e3ddcf;font-size:11px;font-weight:450;letter-spacing:.04em}
+    .story-copy{margin:auto 0}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;color:#f6c477;font-size:11px;font-weight:800;letter-spacing:.14em}
+    .eyebrow-dot{width:7px;height:7px;border-radius:50%;background:#f6c477;box-shadow:0 0 0 4px #f6c47725}
+    .story-copy h2{max-width:440px;margin:12px 0 9px;font-size:clamp(30px,4vw,43px);line-height:1.08;letter-spacing:-.04em}
+    .story-copy>p{max-width:440px;margin:0;color:#e0e6dc;font-size:15px}
+    .auth-illustration{max-width:470px;margin:21px auto 16px;padding:8px;border:1px solid #ffffff36;border-radius:19px;background:#ffffff13;box-shadow:0 12px 35px #0f241b24}
+    .auth-illustration img{display:block;width:100%;height:clamp(180px,35vw,264px);object-fit:cover;object-position:center 52%;border-radius:13px}
+    .auth-illustration figcaption{padding:7px 3px 0;color:#d4dfd4;font-size:10px;text-align:right}
+    .story-benefits{display:grid;gap:7px;margin:0;padding:0;list-style:none;color:#f1eadc;font-size:12px}
+    .story-benefits li{display:flex;align-items:center;gap:8px}
+    .benefit-check{display:grid;place-items:center;width:18px;height:18px;flex:0 0 18px;border-radius:50%;background:#f5bc63;color:#263c2d;font-size:12px;font-weight:900}
+    .story-foot{padding-top:13px;border-top:1px solid #ffffff30;color:#d4dfd4;font-size:11px}
+    .auth-content{display:flex;flex-direction:column;justify-content:center;padding:clamp(32px,5vw,62px)}
+    .form-eyebrow{color:var(--accent)}
+    h1{margin:11px 0 6px;font-size:clamp(27px,3vw,34px);line-height:1.15;letter-spacing:-.035em}
+    .form-intro{margin:0 0 25px;color:var(--muted);font-size:14px}
+    .error{margin:0 0 17px;padding:11px 13px;border:1px solid #efb9a9;border-radius:10px;background:#fff0eb;color:#8f2f1e;font-size:13px}
+    .auth-form{display:grid;gap:8px}
+    .auth-form label{margin-top:8px;font-size:13px;font-weight:700}
+    .auth-form input{width:100%;height:48px;padding:0 13px;border:1px solid var(--border);border-radius:10px;background:var(--field);color:var(--ink);font:inherit;transition:border-color .15s,box-shadow .15s}
+    .auth-form input::placeholder{color:var(--muted);opacity:.75}
+    .auth-form input:focus{outline:none;border-color:#c66c34;box-shadow:0 0 0 4px #d8843830}
+    .field-hint{margin:0;color:var(--muted);font-size:11px}
+    .submit-button{display:flex;align-items:center;justify-content:center;gap:9px;min-height:49px;margin-top:12px;border:0;border-radius:11px;background:linear-gradient(135deg,#b64e1b,#913a1d);color:#fff;font:inherit;font-weight:750;cursor:pointer;box-shadow:0 8px 18px #9a431d30;transition:transform .15s,filter .15s}
+    .submit-button:hover{filter:brightness(1.07);transform:translateY(-1px)}
+    .submit-button:focus-visible,.auth-links a:focus-visible{outline:3px solid #dc8d3f;outline-offset:3px}
+    .form-bottom{margin-top:20px;padding-top:17px;border-top:1px solid var(--border);text-align:center}
+    .form-bottom p{margin:0 0 11px;color:var(--muted);font-size:13px}
+    .auth-links{display:flex;justify-content:center;flex-wrap:wrap;gap:9px 16px}
+    .auth-links a{color:var(--accent);font-size:13px;font-weight:700;text-decoration:none}
+    .auth-links a:hover{text-decoration:underline}
+    .privacy-note{margin:20px 0 0;color:var(--muted);font-size:11px;text-align:center}
+    @media(max-width:850px){body{place-items:start center;padding:16px}.auth-shell{max-width:620px;min-height:0;grid-template-columns:1fr;border-radius:22px}.auth-content{order:1;padding:30px clamp(24px,8vw,56px) 34px}.auth-story{order:2;gap:18px;padding:27px 28px}.story-copy{margin:0}.story-copy h2{max-width:540px;font-size:34px}.auth-illustration{max-width:440px;margin:17px auto 12px}.story-benefits{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.story-benefits li{align-items:flex-start;font-size:11px}.story-foot{padding-top:10px}.auth-page .talking-guide{position:relative;right:auto;bottom:auto;width:min(620px,calc(100% - 20px));margin:12px auto;display:flex;justify-content:flex-end}.auth-page .guide-panel{position:fixed;right:12px;bottom:60px}}
+    @media(max-width:480px){body{padding:10px}.auth-shell{border-radius:18px}.auth-story{padding:22px 19px;gap:15px}.story-copy h2{font-size:30px}.story-copy>p{font-size:14px}.auth-illustration{margin:14px auto 10px;padding:5px}.story-benefits{grid-template-columns:1fr;gap:6px}.story-benefits li{align-items:center;font-size:12px}.auth-content{padding:27px 21px 30px}.form-intro{margin-bottom:18px}}
+    @media(prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--page:#171914;--card:#22251d;--ink:#f8eddc;--muted:#c2b49c;--border:#414238;--field:#2c2d23;--accent:#ffb258;--glow:#3b2b1d}.error{border-color:#714336;background:#39251f;color:#ffd2c3}}
+    :root[data-theme="dark"] .error{border-color:#714336;background:#39251f;color:#ffd2c3}
+  </style>
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <aside class="auth-story">
+      <a class="story-brand" href="{{ url_for('landing') }}">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span>Smart Brooder<small>Incubator climate simulation</small></span>
+      </a>
+      <div class="story-copy">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> A WARMER WAY TO LEARN</div>
+        <h2>Make every degree easier to understand.</h2>
+        <p>Explore how chicks, weather and heater settings shape the temperature inside a brooder.</p>
+        <figure class="auth-illustration">
+          <img src="{{ url_for('static', filename='chicks-in-brooder.jpg') }}"
+               alt="Fluffy yellow chicks standing together inside a brooder"
+               width="1280" height="1280">
+          <figcaption>Photo by <a href="https://commons.wikimedia.org/wiki/File:Fuzzy_yellow_chicks_in_a_brooder.jpg" target="_blank" rel="noopener noreferrer">ELTORO.VET</a> · CC0</figcaption>
+        </figure>
+        <ul class="story-benefits">
+          <li><span class="benefit-check" aria-hidden="true">✓</span>See how temperature changes</li>
+          <li><span class="benefit-check" aria-hidden="true">✓</span>Explore weather and heater limits</li>
+          <li><span class="benefit-check" aria-hidden="true">✓</span>Keep your own simulation history</li>
+        </ul>
+      </div>
+      <div class="story-foot">A learning simulation — real brooders still need careful monitoring.</div>
+    </aside>
+
+    <section class="auth-content" aria-labelledby="authTitle">
+      <div class="eyebrow form-eyebrow"><span class="eyebrow-dot"></span> {{ "YOUR PRIVATE SIMULATION SPACE" if mode == "signup" else "WELCOME BACK" }}</div>
+      <h1 id="authTitle">{{ "Create your account" if mode == "signup" else "Sign in to your account" }}</h1>
+      <p class="form-intro">{{ "Save your simulations and explore brooder conditions at your own pace." if mode == "signup" else "Your saved simulations will be waiting for you." }}</p>
+      {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+      <form class="auth-form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required minlength="3" maxlength="32"
+               autocomplete="username" placeholder="{{ 'Choose a username' if mode == 'signup' else 'Enter your username' }}" aria-describedby="usernameHint" value="{{ username }}">
+        <small class="field-hint" id="usernameHint">Use 3 to 32 characters.</small>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required
+               minlength="{{ 8 if mode == 'signup' else 1 }}" maxlength="128"
+               autocomplete="{{ 'new-password' if mode == 'signup' else 'current-password' }}"
+               placeholder="{{ 'At least 8 characters' if mode == 'signup' else 'Enter your password' }}"
+               {% if mode == "signup" %}aria-describedby="passwordHint"{% endif %}>
+        {% if mode == "signup" %}<small class="field-hint" id="passwordHint">Use 8 or more characters.</small>{% endif %}
+        <button class="submit-button" type="submit">{{ "Create account" if mode == "signup" else "Sign in" }} <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="form-bottom">
+        <p>{% if mode == "signup" %}Already have an account?{% else %}New to Smart Brooder?{% endif %}</p>
+        <div class="auth-links">
+          {% if mode == "signup" %}
+            <a href="{{ url_for('login') }}">Sign in</a>
+          {% else %}
+            <a href="{{ url_for('signup') }}">Create an account</a>
+          {% endif %}
+          <a href="{{ url_for('landing') }}">Back to overview</a>
+        </div>
+      </div>
+      <p class="privacy-note">Your saved runs are private to your account.</p>
+    </section>
+  </main>
+  {% set guide_key = mode %}
+  {% include "_talking_guide.html" %}
+</body>
+</html>
