@@ -23,7 +23,10 @@ from brooder.model import Plant, Controller, make_rhs, control, required_power
 from brooder.solvers import STEPPERS
 from brooder.metrics import recovery_time, steady_state_error, peak_deviation, overshoot_pct
 
-DB_PATH = os.environ.get("BROODER_DB", os.path.join(os.path.dirname(__file__), "runs.db"))
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/runs.db"
+else:
+    DB_PATH = os.path.join(os.path.dirname(__file__), "runs.db")
 MAX_STEPS = 200_000
 MAX_POINTS = 1200
 
@@ -412,3 +415,4 @@ def api_delete(rid):
 
 if __name__ == "__main__":
     app.run(debug=False, host="127.0.0.1", port=5000)
+
