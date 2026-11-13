@@ -1,3 +1,0 @@
-anti_windup,rise_90pct_min,overshoot_pct,peak_above_target_K,recovery_min
-off,15,46.7,7.01,85
-on,15,18.0,2.7,56

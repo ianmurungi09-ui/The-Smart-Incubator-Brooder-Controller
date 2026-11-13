@@ -50,7 +50,7 @@ main{max-width:1540px;margin:auto;display:grid;grid-template-columns:320px minma
 .chart-guide{margin-top:7px;color:var(--mut);font-size:11px}
 fieldset{border:0;border-top:1px solid var(--bd);margin:0;padding:11px 0 6px}
 legend{font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;padding:0 8px 0 0;color:var(--ac)}
-.row{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:8px;align-items:center;margin:5px 0}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:8px;align-items:center;margin:5px 0}.manual-power[hidden]{display:none}
 .row label{color:var(--mut);font-size:12px}
 input,select{width:100%;padding:7px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--soft);color:var(--tx);font:inherit}
 input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--ac) 28%,transparent);border-color:var(--ac)}
@@ -63,7 +63,7 @@ button.sec{background:var(--soft);border:1px solid var(--bd);color:var(--tx)}
 .visuals{min-width:0;display:grid;gap:14px;align-content:start}.visuals>*{min-width:0}
 .scene-card{padding:14px}
 #scene{width:100%;display:block;background:#18273a;border-radius:11px;box-shadow:inset 0 0 0 1px #ffffff18}
-#plot{width:100%;display:block;background:var(--card);border-radius:10px}
+#plot,#comparisonPlot{width:100%;display:block;background:var(--card);border-radius:10px}
 .playback{display:flex;gap:10px;align-items:center;padding:11px 3px 0}
 .playback label{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12px}
 .playback select{width:auto;padding:5px}
@@ -80,7 +80,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}
 td,th{padding:8px 7px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
 th{color:var(--mut);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
 td a{color:var(--ac);font-weight:600}
-.warn{background:#fff1ee;color:#a12;padding:10px;border-radius:8px;margin-top:8px}
+.warn{background:#fff1ee;color:#a12;padding:10px;border-radius:8px;margin-top:8px}#compareError[hidden]{display:none}
 @media(max-width:560px){header{padding:9px 10px;gap:8px}.brand{gap:7px}.brand small{display:none}.brand-mark{width:34px;height:34px}.account{gap:6px}.account-name{display:none}.theme-toggle,header button{padding:7px 8px;font-size:12px}main{padding:16px 12px 25px;gap:12px}.pagehead{align-items:flex-start;flex-direction:column}.card{padding:13px}.row{grid-template-columns:minmax(0,1fr) 90px}.playback{gap:6px}.playback label{font-size:0}.playback select{font-size:12px}#metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style><link rel="stylesheet" href="{{ url_for('static', filename='talking-guide.css') }}"></head><body>
 <header>
@@ -109,6 +109,11 @@ td a{color:var(--ac);font-weight:600}
   <div class="beginner-note" role="note"><strong>New to the simulator?</strong> Keep the recommended values for your first run. This is a learning simulation, not a substitute for monitoring a real brooder.</div>
   {% macro field(k,label,hint='') %}<div class="row"><label for="{{k}}">{{label}}</label>
     <input id="{{k}}" name="{{k}}" type="number" step="{{ '1' if k == 'n_chicks' else 'any' }}" min="{{spec[k][0]}}" max="{{spec[k][1]}}" value="{{spec[k][2]}}"><div class="err" id="e_{{k}}"></div>{% if hint %}<small class="hint">{{hint}}</small>{% endif %}</div>{% endmacro %}
+  <fieldset><legend>Heater control</legend>
+    <div class="row"><label for="mode">Control mode</label><select id="mode" name="mode" aria-controls="manualPowerRow"><option value="automatic">Automatic</option><option value="manual">Manual</option></select></div>
+    <div class="row manual-power" id="manualPowerRow" hidden><label for="manual_power_pct">Manual heater power (%)</label>
+      <input id="manual_power_pct" name="manual_power_pct" type="number" min="0" max="100" step="any" value="{{spec.manual_power_pct[2]}}"><div class="err" id="e_manual_power_pct"></div></div>
+  </fieldset>
   <fieldset><legend>Basic conditions</legend>
     {{field('T_set','Target temperature (°C)','The temperature the controller aims to maintain.')}}
     {{field('n_chicks','Number of chicks','Used to estimate the heat produced inside the brooder.')}}
@@ -133,36 +138,42 @@ td a{color:var(--ac);font-weight:600}
         <div class="row"><label for="label">Run name (optional)</label><input id="label" type="text" placeholder="e.g. Cold night"></div></fieldset>
     </div>
   </details>
-  <div class="actions"><button type="submit">Run simulation</button><button type="button" class="sec" id="reset">Use recommended values</button></div>
+  <div class="actions"><button type="submit">Run simulation</button><button type="button" class="sec" id="solverCompare">Compare Euler vs RK4</button><button type="button" class="sec" id="reset">Use recommended values</button></div>
 </form>
 <div class="visuals">
   <div class="card scene-card">
     <div class="panel-head"><div><strong>Live brooder view</strong><small>Watch the chicks, heater and temperature change over time</small></div><span class="live-pill"><span class="status-dot"></span> SIMULATION</span></div>
-    <canvas id="scene" width="900" height="300" role="img" aria-label="Animated brooder with heater and chicks, showing the current simulation temperature and weather"></canvas>
+    <canvas id="scene" width="900" height="300" role="img" aria-label="Animated brooder with chicks, outdoor weather, and a live dial showing current and target temperature"></canvas>
     <div class="playback">
       <button id="play" class="sec">Pause</button><input id="seek" type="range" min="0" max="1000" value="0" style="flex:1">
       <label>speed <select id="speed" style="width:auto"><option>1</option><option selected>4</option><option>16</option><option>64</option></select>×</label>
       <span id="clock"></span></div>
     <div id="warn"></div><div id="metrics"></div></div>
-  <div class="card plot-card"><div class="panel-head"><div><strong>Temperature &amp; heater response</strong><small>Track warmth and heater power as the weather changes</small></div></div><canvas id="plot" width="900" height="340" role="img" aria-label="Chart showing brooder and outdoor temperature over time, with heater power below"></canvas><div class="chart-guide">Teal shows outdoor temperature; the colored lines compare brooder temperature and heater power. The shaded band marks 33–37 °C.</div></div>
+  <div class="card plot-card"><div class="panel-head"><div><strong>Temperature &amp; heater response</strong><small>Track warmth and heater power as the weather changes</small></div></div><canvas id="plot" width="900" height="340" role="img" aria-label="Chart showing brooder and outdoor temperature over time, with heater power below"></canvas><div class="chart-guide">Teal shows outdoor temperature; the colored lines compare brooder temperature and heater power. The shaded band marks 33–37 °C. Metrics use every integration step; chart data is sampled for display.</div></div>
+  <div class="card plot-card"><div class="panel-head"><div><strong>Euler vs RK4 comparison</strong><small>Same settings and time step; only the solver changes</small></div><span class="section-tag" id="compareSummary" aria-live="polite">Ready to compare</span></div>
+    <canvas id="comparisonPlot" width="900" height="380" role="img" aria-label="Comparison chart of Euler and RK4 brooder temperatures and their difference"></canvas>
+    <div id="compareError" class="warn" role="alert" hidden></div><div id="compareMetrics" class="chart-guide" aria-live="polite">Select one matching Euler and RK4 run below, or click “Compare Euler vs RK4” above.</div>
+    <div class="chart-guide">The upper graph overlays both temperature predictions; the lower graph shows Euler minus RK4 at each recorded time. This comparison does not save additional runs.</div></div>
   <div class="card runs-card"><div class="runs-title"><strong>Saved runs</strong><button class="sec" id="cmp">Compare selected</button></div>
     <div class="table-wrap"><table id="runs"></table></div></div>
 </div></main>
 <script>
 const $=id=>document.getElementById(id), DEF={{spec|tojson}}, CSRF={{csrf|tojson}};
-const KEYS=Object.keys(DEF); let run=null, overlays=[], playing=true, pos=0, last=0, chicks=[];
+const KEYS=Object.keys(DEF); let run=null, overlays=[], comparison=null, playing=true, pos=0, last=0, chicks=[];
 const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function updateThemeButton(){const dark=document.documentElement.dataset.theme==='dark';$('themeToggle').textContent=dark?'Light mode':'Dark mode';$('themeToggle').setAttribute('aria-label',`Switch to ${dark?'light':'dark'} mode`)}
 updateThemeButton();
-$('themeToggle').onclick=()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('brooder-theme',next);updateThemeButton();if(run)drawPlot()};
+$('themeToggle').onclick=()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('brooder-theme',next);updateThemeButton();if(run)drawPlot();if(comparison)drawComparison()};
 for(let i=0;i<200;i++)chicks.push({hx:Math.random(),hy:Math.random(),a:Math.random()*6.28,r:Math.random(),ph:Math.random()*6.28,x:0,y:0});
 const lerp=(a,b,s)=>a+(b-a)*Math.min(Math.max(s,0),1), col=(a,b,s)=>`rgb(${a.map((v,i)=>Math.round(lerp(v,b[i],s))).join()})`;
 
 function params(){const b={};KEYS.forEach(k=>{if($(k))b[k]=$(k).value});
-  b.method=$('method').value;b.antiwindup=$('antiwindup').checked;b.label=$('label').value;
+  b.mode=$('mode').value;b.method=$('method').value;b.antiwindup=$('antiwindup').checked;b.label=$('label').value;
   const hf=$('heater_fail_h').value;b.heater_fail_h=hf===''?null:+hf;return b}
-function setParams(p){KEYS.forEach(k=>{if($(k)&&p[k]!==undefined)$(k).value=p[k]});$('method').value=p.method;
+function updateMode(){ $('manualPowerRow').hidden=$('mode').value!=='manual' }
+function setParams(p){KEYS.forEach(k=>{if($(k)&&p[k]!==undefined)$(k).value=p[k]});$('mode').value=p.mode||'automatic';$('manual_power_pct').value=p.manual_power_pct??DEF.manual_power_pct[2];updateMode();$('method').value=p.method;
   $('antiwindup').checked=p.antiwindup;$('heater_fail_h').value=p.heater_fail_h??''}
+$('mode').onchange=updateMode;
 
 $('f').onsubmit=async e=>{e.preventDefault();
   document.querySelectorAll('.err').forEach(x=>x.textContent='');document.querySelectorAll('input').forEach(x=>x.classList.remove('bad'));
@@ -175,9 +186,9 @@ $('reset').onclick=()=>{KEYS.forEach(k=>{if($(k))$(k).value=DEF[k][2]});$('metho
 
 function load(d){run=d;pos=0;$('warn').innerHTML=d.metrics.unstable?`<div class="warn">${d.metrics.unstable}</div>`:'';
   const m=d.metrics, f=(v,u,n=2)=>v==null?'—':v.toFixed(n)+u;
-  const cards=[['Largest overnight temperature difference',f(m.peak_dev_K,' °C')],['Time to recover to target',m.recovery_min==null?'Not recovered':f(m.recovery_min,' min',0)],
-   ['Final difference from target',f(m.steady_state_error_K,' °C',3)],['Warm-up overshoot',f(m.startup_overshoot_pct,' %',1)],
-   ['Time outside the 33–37 °C range',f(m.minutes_outside_33_37C,' min',0)],['Estimated heater power (night / rain)',`${m.required_power_night_W.toFixed(0)} / ${m.required_power_night_rain_W.toFixed(0)} W`],
+  const cards=[['Largest overnight temperature difference',f(m.peak_dev_K,' °C',4)],['Time to recover to target',m.recovery_min==null?'Not recovered':f(m.recovery_min,' min',2)],
+   ['Final difference from target',f(m.steady_state_error_K,' °C',6)],['Warm-up overshoot',f(m.startup_overshoot_pct,' %',3)],
+   ['Time outside the 33–37 °C range',f(m.minutes_outside_33_37C,' min',2)],['Estimated heater power (night / rain)',`${m.required_power_night_W.toFixed(0)} / ${m.required_power_night_rain_W.toFixed(0)} W`],
    ['Enough heater power for a rainy night?',m.heater_can_hold_night_rain?'Yes':'No — heater reaches its limit'],['Calculation time',m.compute_s+' s']];
   $('metrics').innerHTML=cards.map(c=>`<div class="m">${c[0]}<b>${c[1]}</b></div>`).join('');draw()}
 
@@ -253,21 +264,36 @@ function drawScene(dt){
     x.strokeStyle='#d98c35';x.lineWidth=1.5;
     for(const foot of [-3,4]){x.beginPath();x.moveTo(chick.x+foot,chick.y+7);x.lineTo(chick.x+foot,chick.y+11);x.lineTo(chick.x+foot-3,chick.y+12);x.moveTo(chick.x+foot,chick.y+11);x.lineTo(chick.x+foot+3,chick.y+12);x.stroke()}
   }
-  const tx0=W-200,ty0=40,th=135,yv=v=>ty0+th-(Math.min(Math.max(v,15),45)-15)/30*th;
-  x.shadowColor='rgba(14,29,48,.22)';x.shadowBlur=12;x.fillStyle='rgba(255,255,255,.94)';
-  x.beginPath();x.roundRect(tx0-9,ty0-13,56,th+76,18);x.fill();x.shadowBlur=0;
-  x.fillStyle='#d8e3ec';x.beginPath();x.roundRect(tx0,ty0,32,th,16);x.fill();
-  x.fillStyle='#fff';x.beginPath();x.roundRect(tx0+4,ty0+4,24,th-8,12);x.fill();
-  x.fillStyle='#d9f0e2';x.fillRect(tx0+4,yv(37),24,yv(33)-yv(37));
-  x.fillStyle=col([57,130,230],[226,63,59],(T-20)/20);
-  x.fillRect(tx0+10,yv(T),12,ty0+th-yv(T));
-  x.beginPath();x.arc(tx0+16,ty0+th+2,18,0,Math.PI*2);x.fill();
-  for(let temp=15;temp<=45;temp+=5){const yy=yv(temp);x.strokeStyle='rgba(42,59,78,.75)';x.lineWidth=2;x.beginPath();x.moveTo(tx0+35,yy);x.lineTo(tx0+(temp%10===5?44:51),yy);x.stroke()}
-  x.strokeStyle='#1c2938';x.lineWidth=2;x.beginPath();x.moveTo(tx0-10,yv(run.params.T_set));x.lineTo(tx0+42,yv(run.params.T_set));x.stroke();
-  x.fillStyle='#fff';x.font='700 21px system-ui';x.fillText(T.toFixed(1)+' °C',tx0-9,ty0+th+35);
-  x.font='12px system-ui';x.fillText(`HEATER  ${P.toFixed(0)} / ${Pm.toFixed(0)} W`,tx0-10,ty0+th+55);
-  x.fillStyle='rgba(255,255,255,.65)';x.beginPath();x.roundRect(tx0-10,ty0+th+62,112,9,5);x.fill();
-  x.fillStyle='#f28a32';x.beginPath();x.roundRect(tx0-10,ty0+th+62,112*fr,9,5);x.fill();
+  const gx=W-126,gy=118,gr=67,gaugeAngle=temp=>Math.PI+Math.min(Math.max((temp-25)/20,0),1)*Math.PI;
+  x.shadowColor='rgba(14,29,48,.22)';x.shadowBlur=12;x.fillStyle='rgba(255,255,255,.95)';
+  x.beginPath();x.roundRect(W-250,10,240,280,18);x.fill();x.shadowBlur=0;
+  x.fillStyle='#293746';x.textAlign='center';x.font='700 12px system-ui';x.fillText('BROODER TEMPERATURE',gx,32);
+  x.lineWidth=11;x.lineCap='round';x.strokeStyle='#dce5eb';x.beginPath();x.arc(gx,gy,gr,Math.PI,Math.PI*2);x.stroke();
+  for(const [from,to,color] of [[25,33,'#5b9bd5'],[33,37,'#3b9b68'],[37,40,'#e7a33d'],[40,45,'#d75b52']]){
+    x.strokeStyle=color;x.beginPath();x.arc(gx,gy,gr,gaugeAngle(from),gaugeAngle(to));x.stroke()
+  }
+  x.lineCap='butt';
+  for(const temp of [25,30,33,35,37,40,45]){
+    const angle=gaugeAngle(temp),major=temp%5===0,inner=gr-(major?13:9),outer=gr+2;
+    x.strokeStyle='#354757';x.lineWidth=major?2:1.5;x.beginPath();
+    x.moveTo(gx+Math.cos(angle)*inner,gy+Math.sin(angle)*inner);
+    x.lineTo(gx+Math.cos(angle)*outer,gy+Math.sin(angle)*outer);x.stroke();
+    if(major){x.fillStyle='#52616d';x.font='11px system-ui';x.fillText(String(temp),gx+Math.cos(angle)*(gr+17),gy+Math.sin(angle)*(gr+17)+4)}
+  }
+  const targetAngle=gaugeAngle(run.params.T_set);
+  x.strokeStyle='#1c2938';x.lineWidth=3;x.beginPath();
+  x.moveTo(gx+Math.cos(targetAngle)*(gr-18),gy+Math.sin(targetAngle)*(gr-18));
+  x.lineTo(gx+Math.cos(targetAngle)*(gr+3),gy+Math.sin(targetAngle)*(gr+3));x.stroke();
+  const valueAngle=gaugeAngle(T),needleColor=T<33?'#4b8ac6':T<=37?'#2d8657':T<=40?'#d18a2e':'#c94d48';
+  x.strokeStyle=needleColor;x.lineWidth=4;x.beginPath();x.moveTo(gx,gy);
+  x.lineTo(gx+Math.cos(valueAngle)*(gr-22),gy+Math.sin(valueAngle)*(gr-22));x.stroke();
+  x.fillStyle='#293746';x.beginPath();x.arc(gx,gy,6,0,Math.PI*2);x.fill();
+  x.fillStyle=needleColor;x.font='700 24px system-ui';x.fillText(T.toFixed(1)+' °C',gx,gy+45);
+  x.fillStyle='#52616d';x.font='12px system-ui';x.fillText(`TARGET  ${run.params.T_set.toFixed(1)} °C`,gx,gy+63);
+  x.font='700 12px system-ui';x.fillText(`HEATER  ${P.toFixed(0)} / ${Pm.toFixed(0)} W`,gx,gy+104);
+  x.fillStyle='#dce5eb';x.beginPath();x.roundRect(gx-80,gy+113,160,9,5);x.fill();
+  x.fillStyle='#f28a32';x.beginPath();x.roundRect(gx-80,gy+113,160*fr,9,5);x.fill();
+  x.textAlign='start';
   if(T<31||T>38.5){x.fillStyle='#ffaaa0';x.font='700 17px system-ui';x.fillText(T<31?'CHICKS CHILLED':'HEAT STRESS',W-390,25)}
 }
 
@@ -285,19 +311,128 @@ function drawPlot(){const c=$('plot'),x=c.getContext('2d'),W=c.width,Hh=c.height
     x.lineWidth=1.5;line(x,r.series.t,r.series.P,X,v=>Yp(v,r.params.P_max));x.fillStyle=cols[j%5];x.fillText((r.label||'current'),L+8+j*110,top+2)});
   x.fillStyle=fg;x.fillText('Brooder temperature (color), outdoor temperature (teal); heater power below',L+8,top+16);
   if(run){const cx=X(run.series.t[Math.floor(pos)]);x.strokeStyle=fg;x.beginPath();x.moveTo(cx,top);x.lineTo(cx,Hh-24);x.stroke()}}
+function drawComparison(){
+  const c=$('comparisonPlot'),x=c.getContext('2d'),W=c.width,Hh=c.height;
+  x.clearRect(0,0,W,Hh);
+  const dark=document.documentElement.dataset.theme==='dark',fg=dark?'#e0d4c3':'#584537';
+  if(!comparison){x.fillStyle='#889';x.font='16px sans-serif';x.fillText('Run a comparison to see Euler and RK4 predictions.',24,42);return}
+  const e=comparison.euler.series,r=comparison.rk4.series,tmax=e.t.at(-1)||1;
+  const L=62,R=18,tempTop=38,tempBottom=220,diffTop=268,diffBottom=332;
+  const times=e.t,deltas=e.T.map((v,i)=>v-r.T[i]),absDelta=Math.max(...deltas.map(Math.abs));
+  const allT=e.T.concat(r.T),tMin=Math.floor(Math.min(...allT)-.5),tMax=Math.ceil(Math.max(...allT)+.5);
+  const X=t=>L+t/tmax*(W-L-R),Yt=v=>tempBottom-(v-tMin)/(tMax-tMin)*(tempBottom-tempTop);
+  const dLimit=Math.max(absDelta*1.1,1e-8),Yd=v=>diffBottom-(v+dLimit)/(2*dLimit)*(diffBottom-diffTop);
+  x.font='12px sans-serif';x.fillStyle=fg;x.strokeStyle=dark?'#494238':'#eadfce';
+  for(let i=0;i<=4;i++){
+    const h=tmax*i/4,px=X(h);
+    x.beginPath();x.moveTo(px,tempTop);x.lineTo(px,diffBottom);x.stroke();
+    x.fillText(`${h.toFixed(tmax<10?1:0)} h`,px-12,Hh-8);
+    const temp=tMin+(tMax-tMin)*i/4,py=Yt(temp);
+    x.beginPath();x.moveTo(L,py);x.lineTo(W-R,py);x.stroke();
+    x.fillText(temp.toFixed(1),8,py+4);
+  }
+  x.fillStyle=fg;x.fillText('Brooder temperature (°C)',L,tempTop-12);
+  x.setLineDash([5,4]);x.strokeStyle=dark?'#c2b49c':'#776657';
+  x.beginPath();x.moveTo(L,Yt(comparison.euler.params.T_set));x.lineTo(W-R,Yt(comparison.euler.params.T_set));x.stroke();x.setLineDash([]);
+  x.strokeStyle='#d95f3b';x.lineWidth=2;line(x,times,e.T,X,Yt);
+  x.strokeStyle='#438a5e';line(x,r.t,r.T,X,Yt);
+  x.fillStyle='#d95f3b';x.fillText('Euler',W-150,tempTop-12);
+  x.fillStyle='#438a5e';x.fillText('RK4',W-95,tempTop-12);
+  x.fillStyle=fg;x.fillText('Euler - RK4 temperature difference (°C)',L,diffTop-12);
+  x.strokeStyle=dark?'#777':'#a99d8d';x.lineWidth=1;
+  x.beginPath();x.moveTo(L,Yd(0));x.lineTo(W-R,Yd(0));x.stroke();
+  x.strokeStyle='#4357a5';x.lineWidth=2;line(x,times,deltas,X,Yd);
+  x.fillStyle=fg;x.font='11px sans-serif';x.fillText(`+${dLimit.toExponential(2)}`,8,diffTop+4);
+  x.fillText(`-${dLimit.toExponential(2)}`,8,diffBottom);
+}
+function setComparisonError(message){
+  comparison=null;$('compareSummary').textContent='Select a matching pair';
+  $('compareMetrics').textContent='Choose one Euler and one RK4 saved run with identical settings.';
+  $('compareError').textContent=message;$('compareError').hidden=false;drawComparison()
+}
+function showComparison(euler,rk4,summary){
+  const e=euler.series,r=rk4.series;
+  if(e.t.length!==r.t.length||e.t.some((t,i)=>Math.abs(t-r.t[i])>1e-10))throw new Error('The runs have different time grids.');
+  comparison={euler,rk4};
+  const maxTempDiff=Math.max(...e.T.map((v,i)=>Math.abs(v-r.T[i])));
+  const maxPowerDiff=Math.max(...e.P.map((v,i)=>Math.abs(v-r.P[i])));
+  $('compareError').hidden=true;$('compareError').textContent='';
+  $('compareSummary').textContent=summary;
+  $('compareMetrics').textContent=`Maximum temperature difference: ${maxTempDiff.toFixed(6)} °C · Maximum heater-power difference: ${maxPowerDiff.toFixed(6)} W`;
+  drawComparison()
+}
+function sameScenario(a,b){
+  const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+  keys.delete('method');
+  const value=(p,key)=>key==='mode'?(p.mode||'automatic'):key==='manual_power_pct'?(p.manual_power_pct??DEF.manual_power_pct[2]):p[key];
+  return [...keys].every(key=>value(a,key)===value(b,key))
+}
 function line(x,t,v,X,Y){x.beginPath();t.forEach((a,i)=>i?x.lineTo(X(a),Y(v[i])):x.moveTo(X(a),Y(v[i])));x.stroke()}
 
 async function loadRuns(){const response=await fetch('/api/runs');if(response.status===401){location.href='/login';return}const rs=await response.json();
   const rows=rs.map(r=>{const m=r.metrics;return`<tr><td><input type="checkbox" class="sel" value="${r.id}" style="width:auto"></td><td>${r.id}</td><td><a href="#" data-id="${r.id}" class="ld">${escapeHtml(r.label)}</a></td>
-   <td>${r.params.method}</td><td>${r.params.h}</td><td>${m.peak_dev_K==null?'—':m.peak_dev_K.toFixed(2)}</td><td>${m.recovery_min==null?'—':m.recovery_min.toFixed(0)}</td>
-   <td>${m.steady_state_error_K==null?'—':m.steady_state_error_K.toFixed(3)}</td><td><a href="#" data-del="${r.id}" class="dl">Remove</a></td></tr>`}).join('');
+   <td>${r.params.method}</td><td>${r.params.h}</td><td>${m.peak_dev_K==null?'—':m.peak_dev_K.toFixed(4)}</td><td>${m.recovery_min==null?'—':m.recovery_min.toFixed(2)}</td>
+   <td>${m.steady_state_error_K==null?'—':m.steady_state_error_K.toFixed(6)}</td><td><a href="#" data-del="${r.id}" class="dl">Remove</a></td></tr>`}).join('');
   $('runs').innerHTML='<tr><th></th><th>#</th><th>Name</th><th>Method</th><th>Step (s)</th><th>Largest diff (°C)</th><th>Recovery (min)</th><th>Final diff (°C)</th><th></th></tr>'+
   (rows||'<tr><td colspan="9" class="empty-state">Your saved simulations will appear here. Run one to get started.</td></tr>');
+  document.querySelectorAll('.sel').forEach(box=>box.onchange=()=>{
+    const count=document.querySelectorAll('.sel:checked').length;
+    if(count===2)$('cmp').click();
+    else{comparison=null;$('compareSummary').textContent=count?'Select a second run':'Ready to compare';
+      $('compareMetrics').textContent='Choose one Euler and one RK4 saved run with identical settings.';
+      $('compareError').hidden=true;drawComparison()}
+  });
   document.querySelectorAll('.ld').forEach(a=>a.onclick=async e=>{e.preventDefault();const r=await fetch('/api/runs/'+a.dataset.id);if(r.status===401){location.href='/login';return}const d=await r.json();setParams(d.params);overlays=[];load(d)});
   document.querySelectorAll('.dl').forEach(a=>a.onclick=async e=>{e.preventDefault();const r=await fetch('/api/runs/'+a.dataset.del,{method:'DELETE',headers:{'X-CSRF-Token':CSRF}});if(r.status===401){location.href='/login';return}loadRuns()})}
-$('cmp').onclick=async()=>{overlays=[];for(const s of document.querySelectorAll('.sel:checked')){overlays.push(await (await fetch('/api/runs/'+s.value)).json())}
-  if(overlays.length&&!run)run=overlays.shift();drawPlot()};
-loadRuns();requestAnimationFrame(frame);
+$('cmp').onclick=async()=>{
+  const button=$('cmp'),selected=[...document.querySelectorAll('.sel:checked')],runs=[];
+  button.disabled=true;document.querySelectorAll('.sel').forEach(box=>box.disabled=true);
+  comparison=null;$('compareError').hidden=true;$('compareSummary').textContent='Loading selected runs...';
+  $('compareMetrics').textContent='Checking that the selected runs use matching settings.';drawComparison();
+  try{
+    for(const checkbox of selected){
+      const response=await fetch('/api/runs/'+checkbox.value);
+      if(response.status===401){location.href='/login';return}
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||`Could not load saved run ${checkbox.value} (${response.status})`);
+      runs.push(data)
+    }
+    overlays=runs.slice();
+    if(overlays.length&&!run)run=overlays.shift();
+    drawPlot();
+    if(runs.length!==2){setComparisonError('Select exactly two saved runs: one Euler and one RK4.');return}
+    const euler=runs.find(item=>item.params.method==='euler'),rk4=runs.find(item=>item.params.method==='rk4');
+    if(!euler||!rk4){setComparisonError('Select one Euler run and one RK4 run.');return}
+    if(!sameScenario(euler.params,rk4.params)){setComparisonError('These runs use different settings. Match all settings and the time step, then compare again.');return}
+    showComparison(euler,rk4,'Saved runs');
+  }catch(error){setComparisonError(`Could not load the selected runs: ${error.message}`)}
+  finally{button.disabled=false;document.querySelectorAll('.sel').forEach(box=>box.disabled=false)}
+};
+$('solverCompare').onclick=async()=>{
+  const button=$('solverCompare'),base=params(),results={};
+  button.disabled=true;$('compareError').hidden=true;$('compareError').textContent='';
+  $('compareSummary').textContent='Running...';$('compareMetrics').textContent='Running both solvers with the same settings.';
+  comparison=null;drawComparison();
+  try{
+    for(const method of ['euler','rk4']){
+      const response=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},
+        body:JSON.stringify({...base,method,save:false})});
+      if(response.status===401){location.href='/login';return}
+      const data=await response.json();
+      if(!response.ok){
+        const details=Object.entries(data.errors||{}).map(([field,message])=>`${field}: ${message}`).join('; ');
+        throw new Error(data.error||details||`Simulation failed (${response.status})`);
+      }
+      results[method]=data;
+    }
+    showComparison(results.euler,results.rk4,'Complete');
+  }catch(error){
+    $('compareSummary').textContent='Failed';
+    $('compareError').textContent=`Could not compare solvers: ${error.message}`;
+    $('compareError').hidden=false;
+  }finally{button.disabled=false}
+};
+loadRuns();drawComparison();requestAnimationFrame(frame);
 </script>
 {% set guide_key = "dashboard" %}
 {% include "_talking_guide.html" %}

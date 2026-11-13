@@ -47,6 +47,8 @@ class Controller:
     tau_d: float = 60.0      # s, derivative filter time constant
     antiwindup: bool = True
     heater_on: bool = True   # False models a power failure / heater fault
+    mode: str = "automatic"
+    manual_power_pct: float = 50.0
 
     @property
     def name(self):
@@ -62,7 +64,8 @@ def control(ctrl, plant, T, I, Tm):
     """Return (e, u_raw, P): error, unsaturated command, saturated heater power."""
     e = ctrl.T_set - T
     d_est = (T - Tm) / ctrl.tau_d
-    u_raw = ctrl.Kp * e + ctrl.Ki * I - ctrl.Kd * d_est
+    u_raw = (ctrl.manual_power_pct / 100.0 * plant.P_max if ctrl.mode == "manual"
+             else ctrl.Kp * e + ctrl.Ki * I - ctrl.Kd * d_est)
     P = min(max(u_raw, 0.0), plant.P_max) if ctrl.heater_on else 0.0
     return e, u_raw, P
 
@@ -76,7 +79,7 @@ def make_rhs(plant, ctrl, ambient, rain=lambda t: 0.0):
         e, u_raw, P = control(ctrl, plant, T, I, Tm)
         g = (1.0 + plant.rain_loss * rain(t)) / plant.R
         dT = (P + plant.Q_chicks - g * (T - ambient(t))) / plant.C
-        if ctrl.Ki > 0:
+        if ctrl.Ki > 0 and ctrl.mode == "automatic":
             dI = e
             if ctrl.antiwindup and ctrl.heater_on:
                 # back-calculation with T_t = Ti = Kp/Ki  ->  I' = e + (P - u_raw)/Kp

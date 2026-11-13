@@ -1,4 +1,0 @@
-R_K_per_W,UA_W_per_K,tau_min,power_needed_W,peak_dev_K,recovery_min,steady_err_K,min_until_30C_if_heater_fails
-0.1,10.0,13,222.0,7.2,never,7.2,3
-0.2,5.0,27,107.0,2.77,70,0.0,7
-0.4,2.5,53,49.5,1.55,61,-0.0,16

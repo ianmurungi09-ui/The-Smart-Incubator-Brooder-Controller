@@ -29,6 +29,7 @@ SPEC = {
     "n_chicks": (0, 200, 20), "q_chick": (0, 2, 0.4), "P_max": (10, 1000, 150),
     "T_set": (25, 40, 35), "Kp": (0, 200, 8), "Ki": (0, 1, 0.01), "Kd": (0, 50000, 0),
     "tau_d": (5, 600, 60), "T0": (0, 45, 25),
+    "manual_power_pct": (0, 100, 50),
     "amb_day": (-10, 40, 25), "amb_night": (-10, 40, 12), "night_start_h": (0, 47, 2),
     "night_ramp_min": (1, 360, 30), "dawn_start_h": (0, 48, 9),
     "rain_start_h": (0, 48, 5), "rain_end_h": (0, 48, 7),
@@ -184,7 +185,11 @@ def _parse_bool(value, default=True):
 
 def parse(body):
     errors, p = {}, {}
+    mode = str(body.get("mode", "automatic")).lower()
     for k, (lo, hi, default) in SPEC.items():
+        if k == "manual_power_pct" and mode == "automatic":
+            p[k] = default
+            continue
         raw = body.get(k, default)
         try:
             v = float(raw)
@@ -202,6 +207,9 @@ def parse(body):
     p["method"] = method
     if p["method"] not in STEPPERS:
         errors["method"] = "must be 'euler' or 'rk4'"
+    p["mode"] = mode
+    if p["mode"] not in {"automatic", "manual"}:
+        errors["mode"] = "must be 'automatic' or 'manual'"
     try:
         p["antiwindup"] = _parse_bool(body.get("antiwindup", True))
     except ValueError:
@@ -239,7 +247,8 @@ def simulate(p):
     plant = Plant(C=p["C"], R=p["R"], rain_loss=p["rain_loss"], q_chick=p["q_chick"],
                   n_chicks=int(p["n_chicks"]), P_max=p["P_max"])
     ctrl = Controller(T_set=p["T_set"], Kp=p["Kp"], Ki=p["Ki"], Kd=p["Kd"],
-                      tau_d=p["tau_d"], antiwindup=p["antiwindup"])
+                      tau_d=p["tau_d"], antiwindup=p["antiwindup"], mode=p["mode"],
+                      manual_power_pct=p["manual_power_pct"])
     H = 3600.0
     t_n, t_d = p["night_start_h"] * H, p["dawn_start_h"] * H
     ramp_s = p["night_ramp_min"] * 60.0
@@ -262,6 +271,8 @@ def simulate(p):
     stride = max(1, int(np.ceil((n + 1) / MAX_POINTS)))
     y = np.array([p["T0"], 0.0, p["T0"]])
     t = 0.0
+    metric_t = [t]
+    metric_T = [float(y[0])]
     rec = {k: [] for k in ("t", "T", "Ta", "P", "rain")}
     unstable = None
     fail_t = None if fail in (None, "") else float(fail) * H
@@ -292,10 +303,13 @@ def simulate(p):
             unstable = (f"Numerical instability at t = {t / H:.2f} h with {p['method'].upper()} and "
                         f"h = {h:g} s. Reduce h or use RK4.")
             break
+        metric_t.append(t)
+        metric_T.append(float(y[0]))
         if i % stride == 0 or t >= t_end or (fail_t is not None and t == fail_t):
             record()
-    ts = np.array(rec["t"]) * H
-    e = ctrl.T_set - np.array(rec["T"])
+    ts = np.array(metric_t)
+    temperatures = np.array(metric_T)
+    e = ctrl.T_set - temperatures
     metrics = {"unstable": unstable,
                "required_power_night_W": required_power(plant, ctrl.T_set, p["amb_night"]),
                "required_power_night_rain_W": required_power(plant, ctrl.T_set, p["amb_night"], 1.0),
@@ -310,11 +324,11 @@ def simulate(p):
             "peak_dev_K": peak_deviation(ts[mw], e[mw], t_n) if t_n < w_end else None,
             "recovery_min": None if np.isnan(rt) else rt / 60,
             "steady_state_error_K": steady_state_error(ts, e, min(1800, ts[-1] / 2)),
-            "startup_overshoot_pct": overshoot_pct(rec["T"], p["T0"], ctrl.T_set) if p["T0"] < ctrl.T_set - 1 else None,
+            "startup_overshoot_pct": overshoot_pct(temperatures, p["T0"], ctrl.T_set) if p["T0"] < ctrl.T_set - 1 else None,
             "minutes_outside_33_37C": float(np.sum(
-                ((np.array(rec["T"][:-1]) < 33) | (np.array(rec["T"][:-1]) > 37)) * np.diff(ts)
+                ((temperatures[:-1] < 33) | (temperatures[:-1] > 37)) * np.diff(ts)
             ) / 60),
-            "max_T": float(np.max(rec["T"])), "min_T": float(np.min(rec["T"]))})
+            "max_T": float(np.max(temperatures)), "min_T": float(np.min(temperatures))})
     return rec, metrics
 
 
@@ -350,7 +364,7 @@ def api_simulate():
     metrics["compute_s"] = round(time.time() - t0, 3)
     out = {"params": {k: v for k, v in p.items()}, "metrics": metrics, "series": rec}
     if should_save:
-        label = str(body.get("label") or f"{p['method'].upper()} h={p['h']:g}s")[:80]
+        label = str(body.get("label") or f"{p['mode'].title()} {p['method'].upper()} h={p['h']:g}s")[:80]
         cur = db().execute(
             "INSERT INTO runs(created,label,params,metrics,result,user_id) VALUES(?,?,?,?,?,?)",
             (time.time(), label, json.dumps(out["params"]), json.dumps(metrics), json.dumps(rec),
