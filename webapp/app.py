@@ -11,6 +11,8 @@ import sqlite3
 import time
 from functools import wraps
 
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-secure-development-secret-key-12345')
 import numpy as np
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
