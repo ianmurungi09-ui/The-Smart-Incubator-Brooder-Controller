@@ -7,3 +7,8 @@ __pycache__/
 .env
 webapp/runs.db
 *.db
+
+.vs/
+__pycache__/
+*.pyc
+webapp/runs.db
