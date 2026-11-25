@@ -22,7 +22,7 @@ from brooder.model import Plant, Controller, make_rhs, control, required_power
 from brooder.solvers import STEPPERS
 from brooder.metrics import recovery_time, steady_state_error, peak_deviation, overshoot_pct
 
-ON_CLOUD = bool(os.environ.get("K_SERVICE") or os.environ.get("VERCEL"))   # Cloud Run / Vercel
+ON_CLOUD = bool(os.environ.get("K_SERVICE") or os.environ.get("VERCEL") or os.environ.get("RENDER"))
 DB_PATH = os.environ.get("BROODER_DB") or (
     "/tmp/runs.db" if ON_CLOUD else os.path.join(os.path.dirname(__file__), "runs.db"))
 MAX_STEPS = 50_000          # per request: bounds CPU time
