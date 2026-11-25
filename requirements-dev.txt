@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest
+pygame-ce>=2.5.5
+matplotlib>=3.9.0

@@ -1,0 +1,9 @@
+.venv/
+.vs/
+.vscode/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+webapp/runs.db
+*.db

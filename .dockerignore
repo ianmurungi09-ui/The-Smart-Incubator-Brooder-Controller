@@ -1,0 +1,13 @@
+.git
+.venv
+.vs
+.vscode
+__pycache__
+.pytest_cache
+tests
+results
+*.pptx
+*.docx
+*.html
+!webapp/templates/*.html
+webapp/runs.db
