@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\.pytest_cache",
+    "\\brooder",
+    "\\brooder\\__pycache__",
+    "\\results",
+    "\\tests",
+    "\\webapp",
+    "\\__pycache__"
+  ],
+  "PreviewInSolutionExplorer": false
+}
